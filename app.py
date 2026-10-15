@@ -15,7 +15,7 @@ st.set_page_config(
 # APPLICATION HEADER
 # --------------------------------------------------
 
-st.title("STRATIVA")
+st.title(":material/account_tree: STRATIVA")
 st.caption("Where Strategy Becomes Action.")
 
 st.write(
