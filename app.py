@@ -157,7 +157,7 @@ def get_metrics():
 # HEADER
 # ----------------------------------------
 
-st.title("🔗 STRATIVA")
+st.title(":material/account_tree: STRATIVA")
 st.caption("Where Strategy Becomes Action.")
 
 st.markdown(
