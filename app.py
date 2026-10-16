@@ -356,11 +356,6 @@ with tab1:
             "priorities, delays, and insufficient data."
         )
 
-        st.info(
-            "A human manager must approve proposed tasks "
-            "before they are added to the tracker."
-        )
-
         st.caption(
             "Prototype: rule-based recommendations, "
             "not AI-model-generated analysis."
