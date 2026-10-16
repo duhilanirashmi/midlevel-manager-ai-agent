@@ -912,5 +912,22 @@ with tab4:
         total
     )
 
-    col2.metric(
-        "In
+        col2.metric(
+        "In Progress",
+        in_progress
+    )
+
+    col3.metric(
+        "Completed",
+        completed
+    )
+
+    col4.metric(
+        "Blocked",
+        blocked
+    )
+
+    st.metric(
+        "Overdue Tasks",
+        overdue
+    )
