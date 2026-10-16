@@ -1,5 +1,6 @@
 
 import streamlit as st
+from datetime import date, datetime
 
 # --------------------------------------------------
 # PAGE CONFIGURATION
@@ -10,6 +11,19 @@ st.set_page_config(
     page_icon="🔀",
     layout="wide"
 )
+
+# --------------------------------------------------
+# SESSION DATA
+# --------------------------------------------------
+
+# Tasks are temporary and belong to the current session.
+# Permanent storage will be added in a later phase.
+
+if "tasks" not in st.session_state:
+    st.session_state.tasks = []
+
+if "next_task_id" not in st.session_state:
+    st.session_state.next_task_id = 1
 
 # --------------------------------------------------
 # APPLICATION HEADER
@@ -25,17 +39,18 @@ st.write(
 
 st.write(
     "Translate executive goals into operational action plans, "
-    "monitor performance, and coordinate specialized agents."
+    "coordinate specialized agents, and monitor performance."
 )
 
 st.divider()
 
 # --------------------------------------------------
-# MAIN NAVIGATION
+# NAVIGATION
 # --------------------------------------------------
 
-tab1, tab2, tab3 = st.tabs([
+tab1, tab2, tab3, tab4 = st.tabs([
     "Management Assistant",
+    "Task Management",
     "Agent Coordination",
     "Performance Dashboard"
 ])
@@ -152,19 +167,16 @@ with tab1:
 
             st.write(f"**Management Focus:** {category}")
 
-            # ACTION PLAN
             st.markdown("### 2. Recommended Action Plan")
 
             for i, action in enumerate(actions, 1):
                 st.write(f"{i}. {action}")
 
-            # PERFORMANCE METRICS
             st.markdown("### 3. Suggested Performance Metrics")
 
             for kpi in kpis:
                 st.write(f"• {kpi}")
 
-            # RISKS
             st.markdown("### 4. Risks and Management Oversight")
 
             st.warning(
@@ -184,16 +196,147 @@ with tab1:
             )
 
 # --------------------------------------------------
-# TAB 2: AGENT COORDINATION
+# TAB 2: TASK MANAGEMENT
 # --------------------------------------------------
 
 with tab2:
+
+    st.subheader("Task Allocation & Tracking")
+
+    st.write(
+        "Create operational tasks, assign responsibilities, "
+        "set priorities, and monitor progress."
+    )
+
+    st.markdown("### Create a New Task")
+
+    with st.form("create_task_form", clear_on_submit=True):
+
+        task_name = st.text_input(
+            "Task Name",
+            placeholder="Review current operational workflows"
+        )
+
+        assigned_team = st.selectbox(
+            "Assign To",
+            [
+                "Operations Team",
+                "Human Resources",
+                "Finance Team",
+                "Customer Support",
+                "IT Team",
+                "Management"
+            ]
+        )
+
+        priority = st.selectbox(
+            "Priority",
+            ["High", "Medium", "Low"]
+        )
+
+        due_date = st.date_input(
+            "Due Date",
+            value=date.today()
+        )
+
+        submitted = st.form_submit_button(
+            "Create Task",
+            type="primary"
+        )
+
+        if submitted:
+
+            if not task_name.strip():
+                st.warning("Please enter a task name.")
+
+            else:
+                new_task = {
+                    "id": st.session_state.next_task_id,
+                    "name": task_name.strip(),
+                    "team": assigned_team,
+                    "priority": priority,
+                    "due_date": due_date.isoformat(),
+                    "status": "Not Started",
+                    "created_at": datetime.now().isoformat()
+                }
+
+                st.session_state.tasks.append(new_task)
+                st.session_state.next_task_id += 1
+
+                st.success("Task created successfully.")
+
+    st.divider()
+
+    st.markdown("### Task Tracker")
+
+    if not st.session_state.tasks:
+
+        st.info(
+            "No tasks created yet. "
+            "Use the form above to add your first task."
+        )
+
+    else:
+
+        for task in st.session_state.tasks:
+
+            with st.expander(
+                f"Task #{task['id']} — {task['name']}",
+                expanded=False
+            ):
+
+                st.write(f"**Assigned Team:** {task['team']}")
+                st.write(f"**Priority:** {task['priority']}")
+                st.write(f"**Due Date:** {task['due_date']}")
+
+                current_status = task["status"]
+
+                status_options = [
+                    "Not Started",
+                    "In Progress",
+                    "Completed",
+                    "Blocked"
+                ]
+
+                new_status = st.selectbox(
+                    "Task Status",
+                    status_options,
+                    index=status_options.index(current_status),
+                    key=f"status_{task['id']}"
+                )
+
+                if new_status != current_status:
+                    task["status"] = new_status
+                    st.success("Task status updated.")
+
+                if (
+                    task["status"] != "Completed"
+                    and date.fromisoformat(task["due_date"]) < date.today()
+                ):
+                    st.error("This task is overdue.")
+
+                if task["status"] == "Blocked":
+                    st.warning(
+                        "Management attention required: "
+                        "this task is currently blocked."
+                    )
+
+    st.caption(
+        "Prototype storage: tasks are stored in the "
+        "current Streamlit session and are not permanent."
+    )
+
+# --------------------------------------------------
+# TAB 3: AGENT COORDINATION
+# --------------------------------------------------
+
+with tab3:
 
     st.subheader("External Agent Coordination")
 
     st.write(
         "Strativa is designed to coordinate specialized "
-        "agents and support cross-functional management decisions."
+        "agents and support cross-functional decisions."
     )
 
     st.markdown("### Planned Coordination Capabilities")
@@ -224,31 +367,80 @@ with tab2:
     )
 
 # --------------------------------------------------
-# TAB 3: PERFORMANCE DASHBOARD
+# TAB 4: PERFORMANCE DASHBOARD
 # --------------------------------------------------
 
-with tab3:
+with tab4:
 
     st.subheader("Management Performance Dashboard")
 
-    col1, col2, col3 = st.columns(3)
+    tasks = st.session_state.tasks
 
-    col1.metric("Active Tasks", "—")
-    col2.metric("Completed Tasks", "—")
-    col3.metric("Operational Efficiency", "—")
+    total_tasks = len(tasks)
+
+    completed_tasks = sum(
+        1 for task in tasks
+        if task["status"] == "Completed"
+    )
+
+    active_tasks = sum(
+        1 for task in tasks
+        if task["status"] in ["Not Started", "In Progress"]
+    )
+
+    blocked_tasks = sum(
+        1 for task in tasks
+        if task["status"] == "Blocked"
+    )
+
+    overdue_tasks = sum(
+        1 for task in tasks
+        if (
+            task["status"] != "Completed"
+            and date.fromisoformat(task["due_date"]) < date.today()
+        )
+    )
+
+    completion_rate = (
+        completed_tasks / total_tasks * 100
+        if total_tasks > 0 else 0
+    )
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    col1.metric("Total Tasks", total_tasks)
+    col2.metric("Active Tasks", active_tasks)
+    col3.metric("Completed Tasks", completed_tasks)
+    col4.metric("Blocked Tasks", blocked_tasks)
 
     st.divider()
 
-    st.markdown("### Operational Performance Monitoring")
+    st.markdown("### Task Completion Progress")
 
-    st.write(
-        "This dashboard will track task progress, "
-        "resource utilization, and operational KPIs."
+    st.progress(
+        completion_rate / 100,
+        text=f"{completion_rate:.1f}% completed"
     )
 
-    st.info(
-        "Live metrics will appear after task tracking "
-        "and performance data sources are connected."
+    st.markdown("### Operational Alerts")
+
+    if blocked_tasks > 0:
+        st.warning(
+            f"{blocked_tasks} task(s) are blocked "
+            "and require management attention."
+        )
+
+    if overdue_tasks > 0:
+        st.error(
+            f"{overdue_tasks} task(s) are overdue."
+        )
+
+    if blocked_tasks == 0 and overdue_tasks == 0:
+        st.success("No blocked or overdue tasks.")
+
+    st.caption(
+        "Dashboard metrics reflect tasks entered "
+        "during the current session only."
     )
 
 # --------------------------------------------------
