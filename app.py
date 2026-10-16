@@ -1,11 +1,13 @@
-
 import streamlit as st
 from datetime import date, timedelta
+from collections import Counter
 
+# ============================================================
 # PAGE CONFIGURATION
+# ============================================================
 
 st.set_page_config(
-    page_title="Strativa | Midlevel Manager Agent",
+    page_title="STRATIVA | Midlevel Manager Agent",
     page_icon="🔀",
     layout="wide"
 )
@@ -26,7 +28,12 @@ STATUSES = [
     "Blocked"
 ]
 
+PRIORITIES = ["High", "Medium", "Low"]
+
+
+# ============================================================
 # SESSION DATA
+# ============================================================
 
 if "tasks" not in st.session_state:
     st.session_state.tasks = []
@@ -46,24 +53,41 @@ if "analysis_category" not in st.session_state:
 if "analysis_kpis" not in st.session_state:
     st.session_state.analysis_kpis = []
 
+if "proposal_version" not in st.session_state:
+    st.session_state.proposal_version = 0
 
+
+# ============================================================
 # MANAGEMENT ANALYSIS RULES
+# ============================================================
 
 def build_plan(goal):
+
     lower = goal.lower()
 
     if "efficien" in lower or "productiv" in lower:
+
         category = "Operational Efficiency"
+
         steps = [
-            ("Review workflows and identify bottlenecks",
-             "Operations Team", "High", 3),
-            ("Evaluate team workloads and resource capacity",
-             "Human Resources", "High", 5),
-            ("Assess opportunities for process automation",
-             "IT Team", "Medium", 7),
-            ("Measure improvements and report outcomes",
-             "Management", "Medium", 14),
+            (
+                "Review workflows and identify bottlenecks",
+                "Operations Team", "High", 3
+            ),
+            (
+                "Evaluate team workloads and resource capacity",
+                "Human Resources", "High", 5
+            ),
+            (
+                "Assess opportunities for process automation",
+                "IT Team", "Medium", 7
+            ),
+            (
+                "Measure improvements and report outcomes",
+                "Management", "Medium", 14
+            )
         ]
+
         kpis = [
             "Process completion time",
             "Tasks completed",
@@ -72,17 +96,28 @@ def build_plan(goal):
         ]
 
     elif "customer" in lower or "service" in lower:
+
         category = "Customer Experience"
+
         steps = [
-            ("Review customer feedback and service issues",
-             "Customer Support", "High", 3),
-            ("Identify recurring complaints and bottlenecks",
-             "Operations Team", "High", 5),
-            ("Recommend service process improvements",
-             "Customer Support", "Medium", 7),
-            ("Review satisfaction and resolution metrics",
-             "Management", "Medium", 14),
+            (
+                "Review customer feedback and service issues",
+                "Customer Support", "High", 3
+            ),
+            (
+                "Identify recurring complaints and bottlenecks",
+                "Operations Team", "High", 5
+            ),
+            (
+                "Recommend service process improvements",
+                "Customer Support", "Medium", 7
+            ),
+            (
+                "Review satisfaction and resolution metrics",
+                "Management", "Medium", 14
+            )
         ]
+
         kpis = [
             "Customer satisfaction",
             "Resolution time",
@@ -91,17 +126,28 @@ def build_plan(goal):
         ]
 
     elif "cost" in lower or "budget" in lower:
+
         category = "Cost Management"
+
         steps = [
-            ("Review expenses and budget variance",
-             "Finance Team", "High", 3),
-            ("Identify avoidable operational costs",
-             "Operations Team", "High", 5),
-            ("Evaluate resource allocation options",
-             "Management", "Medium", 7),
-            ("Monitor savings and budget adherence",
-             "Finance Team", "Medium", 14),
+            (
+                "Review expenses and budget variance",
+                "Finance Team", "High", 3
+            ),
+            (
+                "Identify avoidable operational costs",
+                "Operations Team", "High", 5
+            ),
+            (
+                "Evaluate resource allocation options",
+                "Management", "Medium", 7
+            ),
+            (
+                "Monitor savings and budget adherence",
+                "Finance Team", "Medium", 14
+            )
         ]
+
         kpis = [
             "Budget variance",
             "Cost savings",
@@ -110,17 +156,28 @@ def build_plan(goal):
         ]
 
     else:
+
         category = "General Business Operations"
+
         steps = [
-            ("Clarify success criteria and stakeholders",
-             "Management", "High", 3),
-            ("Assess resources and operational constraints",
-             "Operations Team", "High", 5),
-            ("Develop a practical implementation plan",
-             "Management", "Medium", 7),
-            ("Review progress and report results",
-             "Management", "Medium", 14),
+            (
+                "Clarify success criteria and stakeholders",
+                "Management", "High", 3
+            ),
+            (
+                "Assess resources and operational constraints",
+                "Operations Team", "High", 5
+            ),
+            (
+                "Develop a practical implementation plan",
+                "Management", "Medium", 7
+            ),
+            (
+                "Review progress and report results",
+                "Management", "Medium", 14
+            )
         ]
+
         kpis = [
             "Task completion",
             "Milestone achievement",
@@ -141,22 +198,195 @@ def build_plan(goal):
     return category, proposals, kpis
 
 
-# STATUS UPDATE CALLBACK
+# ============================================================
+# TASK MANAGEMENT FUNCTIONS
+# ============================================================
+
+def add_task(name, team, priority, due):
+
+    task = {
+        "id": st.session_state.next_task_id,
+        "name": name.strip(),
+        "team": team,
+        "priority": priority,
+        "due_date": due.isoformat(),
+        "status": "Not Started"
+    }
+
+    st.session_state.tasks.append(task)
+    st.session_state.next_task_id += 1
+
 
 def update_task_status(task_id):
+
     new_status = st.session_state[
         f"task_status_{task_id}"
     ]
 
     for task in st.session_state.tasks:
+
         if task["id"] == task_id:
             task["status"] = new_status
             break
 
 
+# ============================================================
+# LIVE PERFORMANCE CALCULATIONS
+# ============================================================
+
+def calculate_performance():
+
+    tasks = st.session_state.tasks
+
+    total = len(tasks)
+
+    completed = sum(
+        task["status"] == "Completed"
+        for task in tasks
+    )
+
+    in_progress = sum(
+        task["status"] == "In Progress"
+        for task in tasks
+    )
+
+    not_started = sum(
+        task["status"] == "Not Started"
+        for task in tasks
+    )
+
+    blocked = sum(
+        task["status"] == "Blocked"
+        for task in tasks
+    )
+
+    overdue = sum(
+        task["status"] != "Completed"
+        and date.fromisoformat(
+            task["due_date"]
+        ) < date.today()
+        for task in tasks
+    )
+
+    high_priority_pending = sum(
+        task["priority"] == "High"
+        and task["status"] != "Completed"
+        for task in tasks
+    )
+
+    completion_rate = (
+        completed / total
+        if total > 0
+        else 0
+    )
+
+    return {
+        "total": total,
+        "completed": completed,
+        "in_progress": in_progress,
+        "not_started": not_started,
+        "blocked": blocked,
+        "overdue": overdue,
+        "high_priority_pending": high_priority_pending,
+        "completion_rate": completion_rate
+    }
+
+
+# ============================================================
+# RISK DETECTION
+# ============================================================
+
+def detect_risks():
+
+    tasks = st.session_state.tasks
+
+    risks = []
+
+    if not tasks:
+        return risks
+
+    overdue_tasks = [
+        task for task in tasks
+        if task["status"] != "Completed"
+        and date.fromisoformat(
+            task["due_date"]
+        ) < date.today()
+    ]
+
+    if overdue_tasks:
+
+        risks.append({
+            "level": "High",
+            "message": (
+                f"{len(overdue_tasks)} task(s) are overdue. "
+                "Management should review deadlines "
+                "and possible delays."
+            )
+        })
+
+    blocked_tasks = [
+        task for task in tasks
+        if task["status"] == "Blocked"
+    ]
+
+    if blocked_tasks:
+
+        risks.append({
+            "level": "High",
+            "message": (
+                f"{len(blocked_tasks)} task(s) are blocked. "
+                "Management intervention may be required."
+            )
+        })
+
+    pending_high_priority = [
+        task for task in tasks
+        if task["priority"] == "High"
+        and task["status"] == "Not Started"
+    ]
+
+    if pending_high_priority:
+
+        risks.append({
+            "level": "Medium",
+            "message": (
+                f"{len(pending_high_priority)} "
+                "high-priority task(s) have not started."
+            )
+        })
+
+    # Identify potential workload concentration.
+    # This is a simple rule-based indicator,
+    # not a verified staffing-capacity assessment.
+
+    team_workload = Counter(
+        task["team"]
+        for task in tasks
+        if task["status"] != "Completed"
+    )
+
+    for team, count in team_workload.items():
+
+        if count >= 3:
+
+            risks.append({
+                "level": "Medium",
+                "message": (
+                    f"{team} has {count} unfinished tasks. "
+                    "Review team capacity and competing "
+                    "priorities."
+                )
+            })
+
+    return risks
+
+
+# ============================================================
 # APPLICATION HEADER
+# ============================================================
 
 st.title(":material/account_tree: STRATIVA")
+
 st.caption("Where Strategy Becomes Action.")
 
 st.write(
@@ -166,13 +396,16 @@ st.write(
 
 st.write(
     "Translate executive goals into operational plans, "
-    "approve task assignments, and monitor progress."
+    "approve task assignments, monitor performance, "
+    "and identify management risks."
 )
 
 st.divider()
 
 
+# ============================================================
 # NAVIGATION
+# ============================================================
 
 tab1, tab2, tab3, tab4 = st.tabs([
     "Management Assistant",
@@ -182,7 +415,9 @@ tab1, tab2, tab3, tab4 = st.tabs([
 ])
 
 
+# ============================================================
 # TAB 1: MANAGEMENT ASSISTANT
+# ============================================================
 
 with tab1:
 
@@ -199,9 +434,13 @@ with tab1:
     if st.button("Analyze Goal", type="primary"):
 
         if not goal.strip():
-            st.warning("Please enter a management goal.")
+
+            st.warning(
+                "Please enter a management goal."
+            )
 
         else:
+
             category, proposals, kpis = build_plan(goal)
 
             st.session_state.proposal = proposals
@@ -209,16 +448,13 @@ with tab1:
             st.session_state.analysis_category = category
             st.session_state.analysis_kpis = kpis
 
-            st.session_state.proposal_version = (
-                st.session_state.get("proposal_version", 0) + 1
-            )
+            st.session_state.proposal_version += 1
 
-    if st.session_state.proposal:
+    # --------------------------------------------------------
+    # SECTION 1: GOAL ASSESSMENT
+    # --------------------------------------------------------
 
-        st.success(
-            "Proposed action plan ready for management review. "
-            "No tasks have been assigned yet."
-        )
+    if st.session_state.proposal_goal:
 
         st.markdown("### 1. Goal Assessment")
 
@@ -232,16 +468,26 @@ with tab1:
             f"{st.session_state.analysis_category}"
         )
 
+    # --------------------------------------------------------
+    # SECTION 2: MANAGEMENT APPROVAL
+    # --------------------------------------------------------
+
+    if st.session_state.proposal:
+
+        st.success(
+            "Proposed action plan ready for management "
+            "review. No tasks have been assigned yet."
+        )
+
         st.markdown("### 2. Review Proposed Tasks")
 
         st.caption(
-            "Suggested assignments and deadlines are editable. "
-            "Approve only the tasks you want to create."
+            "Suggested assignments and deadlines are "
+            "editable. Approve only the tasks you want "
+            "to create."
         )
 
-        version = st.session_state.get(
-            "proposal_version", 0
-        )
+        version = st.session_state.proposal_version
 
         with st.form(f"approval_form_{version}"):
 
@@ -276,10 +522,10 @@ with tab1:
 
                 priority = st.selectbox(
                     "Priority",
-                    ["High", "Medium", "Low"],
-                    index=[
-                        "High", "Medium", "Low"
-                    ].index(item["priority"]),
+                    PRIORITIES,
+                    index=PRIORITIES.index(
+                        item["priority"]
+                    ),
                     key=f"priority_{version}_{i}"
                 )
 
@@ -308,6 +554,7 @@ with tab1:
             ]
 
             if not chosen:
+
                 st.warning(
                     "Select at least one task "
                     "with a description."
@@ -317,16 +564,12 @@ with tab1:
 
                 for _, name, team, priority, due in chosen:
 
-                    st.session_state.tasks.append({
-                        "id": st.session_state.next_task_id,
-                        "name": name.strip(),
-                        "team": team,
-                        "priority": priority,
-                        "due_date": due.isoformat(),
-                        "status": "Not Started"
-                    })
-
-                    st.session_state.next_task_id += 1
+                    add_task(
+                        name,
+                        team,
+                        priority,
+                        due
+                    )
 
                 st.session_state.proposal = []
 
@@ -340,38 +583,142 @@ with tab1:
                     "to view your approved tasks."
                 )
 
-        st.markdown(
-            "### 3. Suggested Performance Metrics"
+    # --------------------------------------------------------
+    # SECTION 3: LIVE PERFORMANCE METRICS
+    # --------------------------------------------------------
+
+    st.markdown(
+        "### 3. Performance Metrics & Progress"
+    )
+
+    performance = calculate_performance()
+
+    if performance["total"] == 0:
+
+        st.info(
+            "No approved or manually created tasks yet. "
+            "Performance metrics will appear once "
+            "tasks are added."
         )
+
+    else:
+
+        col1, col2, col3, col4 = st.columns(4)
+
+        col1.metric(
+            "Total Tasks",
+            performance["total"]
+        )
+
+        col2.metric(
+            "In Progress",
+            performance["in_progress"]
+        )
+
+        col3.metric(
+            "Completed",
+            performance["completed"]
+        )
+
+        col4.metric(
+            "Completion Rate",
+            f"{performance['completion_rate'] * 100:.1f}%"
+        )
+
+        st.progress(
+            performance["completion_rate"],
+            text=(
+                f"{performance['completion_rate'] * 100:.1f}% "
+                "of tasks completed"
+            )
+        )
+
+        st.caption(
+            "Metrics update from task records in "
+            "the current Streamlit session."
+        )
+
+    if st.session_state.analysis_kpis:
+
+        st.markdown("#### Recommended Business KPIs")
 
         for kpi in st.session_state.analysis_kpis:
             st.write(f"• {kpi}")
 
-        st.markdown(
-            "### 4. Risks and Human Oversight"
-        )
-
-        st.warning(
-            "Watch for resource constraints, competing "
-            "priorities, delays, and insufficient data."
-        )
-
         st.caption(
-            "Prototype: rule-based recommendations, "
-            "not AI-model-generated analysis."
+            "Business KPIs above are recommendations. "
+            "Actual cost, productivity, and customer "
+            "outcomes require additional data sources."
         )
 
+    # --------------------------------------------------------
+    # SECTION 4: DYNAMIC RISKS
+    # --------------------------------------------------------
 
+    st.markdown(
+        "### 4. Risks and Human Oversight"
+    )
+
+    risks = detect_risks()
+
+    if performance["total"] == 0:
+
+        st.info(
+            "Risk monitoring will begin once "
+            "tasks are created."
+        )
+
+    elif not risks:
+
+        st.success(
+            "No risks detected under the current "
+            "monitoring rules."
+        )
+
+    else:
+
+        for risk in risks:
+
+            if risk["level"] == "High":
+
+                st.error(
+                    f"High Risk: {risk['message']}"
+                )
+
+            else:
+
+                st.warning(
+                    f"Attention Required: {risk['message']}"
+                )
+
+    st.caption(
+        "Risk alerts are rule-based indicators. "
+        "Managers should verify the circumstances "
+        "before taking action."
+    )
+
+    st.caption(
+        "Prototype: rule-based recommendations, "
+        "not AI-model-generated analysis."
+    )
+
+
+# ============================================================
 # TAB 2: TASK MANAGEMENT
+# ============================================================
 
 with tab2:
 
     st.subheader("Task Allocation & Tracking")
 
     st.write(
-        "Create tasks manually or review tasks approved "
-        "in the Management Assistant."
+        "Create tasks manually or review tasks "
+        "approved in the Management Assistant."
     )
+
+    # --------------------------------------------------------
+    # CREATE TASK
+    # --------------------------------------------------------
 
     with st.form(
         "manual_task_form",
@@ -387,7 +734,7 @@ with tab2:
 
         priority = st.selectbox(
             "Priority",
-            ["High", "Medium", "Low"]
+            PRIORITIES
         )
 
         due = st.date_input(
@@ -403,24 +750,29 @@ with tab2:
     if create:
 
         if not name.strip():
-            st.warning("Please enter a task name.")
+
+            st.warning(
+                "Please enter a task name."
+            )
 
         else:
 
-            st.session_state.tasks.append({
-                "id": st.session_state.next_task_id,
-                "name": name.strip(),
-                "team": team,
-                "priority": priority,
-                "due_date": due.isoformat(),
-                "status": "Not Started"
-            })
+            add_task(
+                name,
+                team,
+                priority,
+                due
+            )
 
-            st.session_state.next_task_id += 1
-
-            st.success("Task created successfully.")
+            st.success(
+                "Task created successfully."
+            )
 
     st.divider()
+
+    # --------------------------------------------------------
+    # TASK TRACKER
+    # --------------------------------------------------------
 
     st.markdown("### Task Tracker")
 
@@ -462,7 +814,7 @@ with tab2:
 
                 st.warning(
                     "Management attention required: "
-                    "task is blocked."
+                    "this task is blocked."
                 )
 
             if (
@@ -472,40 +824,72 @@ with tab2:
                 ) < date.today()
             ):
 
-                st.error("This task is overdue.")
+                st.error(
+                    "This task is overdue."
+                )
 
     st.caption(
-        "Tasks are stored only in this browser session. "
-        "They are not shared or permanently saved."
+        "Tasks are stored only in the current "
+        "Streamlit session. They are not permanently "
+        "saved or shared between users."
     )
 
 
+# ============================================================
 # TAB 3: AGENT COORDINATION
+# ============================================================
 
 with tab3:
 
     st.subheader("External Agent Coordination")
 
     st.write(
-        "Future integrations will let Strativa send "
-        "approved work to specialized agents and "
-        "receive status reports."
+        "STRATIVA is designed to coordinate "
+        "specialized agents and support "
+        "management decisions."
     )
 
     st.info(
         "No external agents are connected yet. "
-        "Automatic agent-reported status changes "
-        "are not implemented."
+        "Automatic agent-reported task status "
+        "changes are not implemented."
+    )
+
+    st.markdown("### Planned Agent Communication")
+
+    st.write(
+        "1. Receive an executive management goal."
     )
 
     st.write(
-        "Planned capabilities: request routing, "
-        "agent responses, conflict escalation, "
-        "and management summaries."
+        "2. Generate a proposed operational plan."
+    )
+
+    st.write(
+        "3. Obtain human management approval."
+    )
+
+    st.write(
+        "4. Send approved work to connected agents."
+    )
+
+    st.write(
+        "5. Receive progress and completion updates."
+    )
+
+    st.write(
+        "6. Monitor performance and escalate risks."
+    )
+
+    st.caption(
+        "External agent communication will be "
+        "implemented in a later development stage."
     )
 
 
+# ============================================================
 # TAB 4: PERFORMANCE DASHBOARD
+# ============================================================
 
 with tab4:
 
@@ -513,81 +897,20 @@ with tab4:
         "Management Performance Dashboard"
     )
 
-    tasks = st.session_state.tasks
+    performance = calculate_performance()
 
-    total = len(tasks)
+    total = performance["total"]
+    completed = performance["completed"]
+    in_progress = performance["in_progress"]
+    blocked = performance["blocked"]
+    overdue = performance["overdue"]
 
-    completed = sum(
-        t["status"] == "Completed"
-        for t in tasks
+    col1, col2, col3, col4 = st.columns(4)
+
+    col1.metric(
+        "Total Tasks",
+        total
     )
 
-    active = sum(
-        t["status"] in (
-            "Not Started",
-            "In Progress"
-        )
-        for t in tasks
-    )
-
-    blocked = sum(
-        t["status"] == "Blocked"
-        for t in tasks
-    )
-
-    overdue = sum(
-        t["status"] != "Completed"
-        and date.fromisoformat(
-            t["due_date"]
-        ) < date.today()
-        for t in tasks
-    )
-
-    a, b, c, d = st.columns(4)
-
-    a.metric("Total Tasks", total)
-    b.metric("Active Tasks", active)
-    c.metric("Completed Tasks", completed)
-    d.metric("Blocked Tasks", blocked)
-
-    rate = completed / total if total else 0
-
-    st.markdown("### Task Completion Progress")
-
-    st.progress(
-        rate,
-        text=f"{rate * 100:.1f}% completed"
-    )
-
-    st.markdown("### Operational Alerts")
-
-    if blocked:
-        st.warning(
-            f"{blocked} task(s) blocked "
-            "and requiring attention."
-        )
-
-    if overdue:
-        st.error(
-            f"{overdue} task(s) overdue."
-        )
-
-    if not blocked and not overdue:
-        st.success(
-            "No blocked or overdue tasks."
-        )
-
-    st.caption(
-        "Dashboard reflects tasks "
-        "in the current session only."
-    )
-
-
-# FOOTER
-
-st.divider()
-
-st.caption(
-    "STRATIVA | Midlevel Manager Agent | "
-    "Academic Project Prototype"
-)
+    col2.metric(
+        "In
